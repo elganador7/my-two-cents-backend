@@ -1,10 +1,17 @@
-from prediction_engine.api.v1 import prediction_api
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 
-app = FastAPI(
-    description="train and test models for various stocks"
-)
+from prediction_engine.config_files.logger_config import logger
+from prediction_engine.api.v1.prediction_api import router
 
 app = FastAPI()
 
-app.include_router(prediction_api, prefix="/prediction")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],  # can alter with time
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
+app.include_router(router, prefix="/api")
