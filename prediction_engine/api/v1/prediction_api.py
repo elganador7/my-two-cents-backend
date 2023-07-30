@@ -1,25 +1,39 @@
+## External Libraries
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
-from prediction_engine.classes.connection_manager import ConnectionManager
 
 from datetime import datetime
+import time
 import asyncio
 
-import json
-import random
+## Local Imports
+from prediction_engine.classes.connection_manager import ConnectionManager
+from prediction_engine.helpers.trader import get_stock_price
+from prediction_engine.config_files.logger_config import logger
 
-router = APIRouter()
+
+prediction_router = APIRouter()
 
 # WebSocket manager to keep track of connected clients
 manager = ConnectionManager()
 
 # Function to send data to all connected websockets
-async def send_data():
+async def send_data(ticker_name):
     while True:
         # Your task that generates data (random number in this case)
-        data = random.randint(1, 100)
 
+        try:
+            price, timestamp, volume = get_stock_price(ticker_name)
+            if (price > (last_long_action_price + 0.07*(7-(timestamp-last_long_action_timestamp)/60000)) and long_position > 0):
+                balance += price*long_position
+                print(f"Sold {long_position} shares at ${price} at a profit of ${price-last_long_action_price}/share")
+                long_position = 0
+        except Exception as e:
+            logger.error(e)
+            time.sleep(1.8)
+            continue
+        
         # Send data to all connected websockets
-        manager.broadcast(data)
+        manager.broadcast(1)
 
         # Wait for 2 seconds before sending data again
         await asyncio.sleep(2)

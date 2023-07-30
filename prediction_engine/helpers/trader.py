@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import tensorflow as tf
+from types import List
 
 from plotly import graph_objects as go
 
@@ -12,7 +13,7 @@ import yfinance as yf
 
 import time
 
-API_KEY = "QWDyJh_SOL8zLdkqQPPMo85Y_naYXzc8"
+API_KEY = ""
 
 def fetch_stock_data(stock_symbol, start_date = "2023-05-01", end_date = "2023-07-01", limit=500000):
     url = f"https://api.polygon.io/v2/aggs/ticker/{stock_symbol}/range/1/minute/{start_date}/{end_date}?adjusted=true&sort=asc&limit={limit}&apiKey={API_KEY}"
@@ -20,8 +21,6 @@ def fetch_stock_data(stock_symbol, start_date = "2023-05-01", end_date = "2023-0
     loaded_data = json.loads(response.content)
     
     if response.status_code == 200:
-        
-
         stock_data = loaded_data["results"]
 
         while "next_url" in loaded_data:
@@ -42,6 +41,43 @@ def get_stock_price(ticker_name):
     volume = ticker.info['volume']
     timestamp = int(datetime.datetime.now().timestamp() * 1000)
     return price, timestamp, volume
+
+def generate_recommendation(
+    predicted_values_min : List = [],
+    predicted_values_max : List = [],
+):
+    # if predicted_value_min > 0.55:
+    #     recommendation = "Sell"
+    #     last_short_action_price = price
+    #     delta_pos = -10 - short_position
+    #     short_position = -10
+    #     balance += (delta_pos * price)
+    #     if predicted_value_min > 0.65:
+    #         modifier = "Strong"
+    #         delta_pos = -20 - short_position
+    #         short_position = -20
+    #         balance += (delta_pos * price)
+    if predicted_value_max > 0.58:
+        recommendation = "Buy"
+        last_long_action_price = price
+        last_long_action_timestamp = timestamp
+        delta_pos = 10 - long_position
+        long_position = 10
+        balance -= (delta_pos * price)
+        if predicted_value_max > 0.65:
+            modifier = "Strong"
+            delta_pos = 20 - long_position
+            long_position = 20
+            balance -= (delta_pos * price)
+    elif predicted_value_max < 0.5:
+        recommendation = "Sell"
+        if long_position > 0:
+            delta_pos = long_position
+            print(f"Sold {long_position} shares at ${price} at a profit of ${price-last_long_action_price}/share")
+            long_position = 0
+            balance += (delta_pos * price)
+                    
+    return "Hold"
 
 if __name__ == '__main__':
     model_min = tf.keras.models.load_model('./bc_model_five_m_min')
@@ -66,14 +102,11 @@ if __name__ == '__main__':
     last_long_action_price = 0
     last_long_action_timestamp = 0
 
-
     # Choose the sequence length for input data
     sequence_length = 20
     pred_distance = 5
     last_min = None
     last_max = None
-
-
 
     print(f"timestamp, close, max, min, timestamp+1000*60*5, predicted_value_min, predicted_value_max, modifier, recommendation, position, balance")
 
@@ -84,8 +117,6 @@ if __name__ == '__main__':
                 balance += price*long_position
                 print(f"Sold {long_position} shares at ${price} at a profit of ${price-last_long_action_price}/share")
                 long_position = 0
-                
-
         except:
             time.sleep(1.8)
             continue
@@ -122,8 +153,6 @@ if __name__ == '__main__':
             curr_interval = []
             og_timestamp = timestamp
 
-            
-
             if len(stat_array) == sequence_length-1:
                 sequence = np.array(stat_array)
                 np.save("stat_array_state.npy", stat_array)
@@ -134,7 +163,6 @@ if __name__ == '__main__':
                 # Convert the predicted scaled value back to the original scale
                 recommendation = "Hold"
                 modifier = "Weak"
-
                     
                 # if predicted_value_min > 0.55:
                 #     recommendation = "Sell"
@@ -166,23 +194,10 @@ if __name__ == '__main__':
                         print(f"Sold {long_position} shares at ${price} at a profit of ${price-last_long_action_price}/share")
                         long_position = 0
                         balance += (delta_pos * price)
-                    
-                        
-                
+               
                 print(f"{timestamp}, {price}, {max}, {min}, {timestamp+1000*60*5}, {predicted_value_min[0][0]}, {predicted_value_max[0][0]}, {modifier}, {recommendation}, {long_position}, {balance}")
                 
                 last_predicted_min, last_predicted_max = predicted_value_min, predicted_value_max 
                 stat_array = stat_array[1:]
 
-                
-
-
-
         time.sleep(1.9)
-    
-    
-
-
-    print(df.head())
-
-
