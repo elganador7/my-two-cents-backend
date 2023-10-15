@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 import tensorflow as tf
-from types import List
 
 from plotly import graph_objects as go
 
@@ -12,6 +11,8 @@ import datetime
 import yfinance as yf
 
 import time
+
+from prediction_engine.config_files.logger_config import logger
 
 API_KEY = ""
 
@@ -42,9 +43,10 @@ def get_stock_price(ticker_name):
     timestamp = int(datetime.datetime.now().timestamp() * 1000)
     return price, timestamp, volume
 
-def generate_recommendation(
-    predicted_values_min : List = [],
-    predicted_values_max : List = [],
+def generate_recommendation_max(
+    price : float,
+    predicted_values_max = [],
+    
 ):
     # if predicted_value_min > 0.55:
     #     recommendation = "Sell"
@@ -79,7 +81,44 @@ def generate_recommendation(
                     
     return "Hold"
 
-if __name__ == '__main__':
+def group_dataframe(df : pd.DataFrame, column : str,  timestamp : int):
+    # Remove any items that are more than 1.2 million less than number x
+    df[column] = df[column][df[column]> timestamp - 1200000]
+
+    # Group the dataframe into sets of size 60000
+    records = df.to_dict('records')
+
+    stat_array = []
+    # Calculate the interval group for the 'timestamp' column
+    interval = 60000
+    df['timestamp_group'] = (df['timestamp'] - df['timestamp'].min()) // interval
+
+    # Group the DataFrame based on the 'timestamp_group' column
+    groups = df.groupby('timestamp_group')
+
+    logger.info(len(groups))
+
+    if len(groups) < 20:
+        return None, records
+    else: 
+        last_min = None
+        last_max = None
+        
+        for group in groups:
+            logger.info(group[1]["price"])
+            min_val = group[1]["price"].min()
+            max_val = group[1]["price"].max()
+            if last_max is not None and last_min is not None:
+                max_diff = max_val - last_max
+                min_diff = min_val - last_min
+                stat_array.append(np.array([max_diff, min_diff]))
+            last_min = min_val
+            last_max = max_val
+
+    # Return the results as a NumPy array
+    return np.array(stat_array), records
+
+def trading_loop():
     model_min = tf.keras.models.load_model('./bc_model_five_m_min')
     model_max = tf.keras.models.load_model('./bc_model_five_m_max')
 
@@ -123,24 +162,6 @@ if __name__ == '__main__':
         curr_interval.append({'price': price, 'timestamp': timestamp, "volume" : volume})
         if timestamp > og_timestamp + 1000*60:
             df = pd.DataFrame.from_records(curr_interval)
-
-            # Assuming 'df' is your DataFrame with 'timestamp' column
-            # Convert the 'timestamp' column to datetime format
-            df['timestamp'] = pd.to_datetime(df['timestamp'], unit='s')
-
-            # Set the 'timestamp' column as the DataFrame index
-            df.set_index('timestamp', inplace=True)
-
-            # Group data into one-minute intervals
-            grouped_data = df.resample('1T')
-
-            # Filter out anything older than 20 minutes
-            current_time = pd.Timestamp.now()
-            twenty_minutes_ago = current_time - pd.Timedelta(minutes=20)
-            filtered_data = grouped_data[grouped_data.index >= twenty_minutes_ago]
-
-            # Calculate the max and min of each 20-minute interval
-            result = filtered_data.agg({'price"': ['max', 'min']})
 
             max = df["price"].max()
             min = df["price"].min()

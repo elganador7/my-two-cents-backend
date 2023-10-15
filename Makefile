@@ -1,27 +1,18 @@
 # Variables
 RELEASE_TAG := $(shell git describe --tags)
 BUILD_VERSION := $(RELEASE_TAG:v%=%)
-GCP_PROJECT_NAME := boston
-GCP_REGION := us-east1
-ENVIRONMENT ?= dev
-GCP_PROJECT := gecko-$(ENVIRONMENT)-${GCP_PROJECT_NAME}
-APPLICATION := repair-plan-service
+APPLICATION := prediction-engine
 DOCKER_TAG := ${GCP_REGION}-docker.pkg.dev/${GCP_PROJECT}/${GCP_PROJECT_NAME}/${APPLICATION}
 CHART_NAME := $$(cat .deploy/cloud-run/chart.yaml | grep name | cut -d: -f2 | xargs)
-CHART_VERSION := $$(cat .deploy/cloud-run/chart.yaml | grep version | cut -d: -f2 | xargs)
-HELM_COMMAND := helm template ${APPLICATION} geckorobotics/${CHART_NAME} --version ${CHART_VERSION} -f .deploy/cloud-run/values.yaml -f .deploy/cloud-run/${ENVIRONMENT}.values.yaml
 CONTAINER_NAME := ${APPLICATION}-container
 POETRY_LIBRARY_VERSION=1.4.0
 
 # Docker build args
 BUILD_VERSION_ARG=--build-arg POETRY_BUILD_VERSION=$(shell echo ${BUILD_VERSION} | sed 's@-@+@') #needed for PEP440
 POETRY_LIBRARY_VERSION_ARG=--build-arg POETRY_LIBRARY_VERSION=$(POETRY_LIBRARY_VERSION)
-ARTIFACTORY_USER_ARG=--build-arg POETRY_HTTP_BASIC_GECKOROBOTICS_PYPI_USERNAME=$(ARTIFACTORY_USER)
-ARTIFACTORY_PASS_ARG=--build-arg POETRY_HTTP_BASIC_GECKOROBOTICS_PYPI_PASSWORD=$(ARTIFACTORY_PASS)
 DEPLOY_ENVIRONMENT_ARG=--build-arg DEPLOY_ENVIRONMENT=$(ENVIRONMENT)
-BUILD_ARGS=$(BUILD_VERSION_ARG) $(POETRY_LIBRARY_VERSION_ARG) $(ARTIFACTORY_USER_ARG) $(ARTIFACTORY_PASS_ARG) $(DEPLOY_ENVIRONMENT_ARG)
+BUILD_ARGS=$(BUILD_VERSION_ARG) $(POETRY_LIBRARY_VERSION_ARG) $(DEPLOY_ENVIRONMENT_ARG)
 
-CLOUD_RUN_SERVICE_ACCOUNT := ${APPLICATION}@${GCP_PROJECT}.iam.gserviceaccount.com
 
 # Sets up docker using gcloud
 .PHONY: setup-gcloud
